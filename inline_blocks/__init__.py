@@ -8,11 +8,12 @@ class InlineBlockPreprocessor(Preprocessor):
     # 1. /// block: content
     # 2. /// block | modifiers : content
     RE = re.compile(
-        r'^(?P<slashes>/{3,})\s*'                 # Capture 3+ leading slashes
-        r'(?P<block>[a-zA-Z0-9_-]+)'             # Block type
-        r'(?:\s*\|\s*(?P<modifiers>[^:]+))?'     # Optional modifiers
+        r'^(?P<indent>[ \t]*)'                      # Capture leading indentation
+        r'(?P<slashes>/{3,})\s*'                   # Capture 3+ leading slashes
+        r'(?P<block>[a-zA-Z0-9_-]+)'               # Block type
+        r'(?:\s*\|\s*(?P<modifiers>[^:]+))?'       # Optional modifiers
         r'\s*:\s*'
-        r'(?P<content>.+)$'                       # Content
+        r'(?P<content>.+)$'                        # Content
     )
 
     def run(self, lines):
@@ -20,17 +21,18 @@ class InlineBlockPreprocessor(Preprocessor):
         for line in lines:
             m = self.RE.match(line)
             if m:
+                indent = m.group("indent") or ""
                 slashes = m.group("slashes")
                 block_type = m.group("block")
                 modifiers = m.group("modifiers")
                 content = m.group("content").strip()
 
                 if modifiers:
-                    new_lines.append(f"{slashes} {block_type} | {modifiers.strip()}")
+                    new_lines.append(f"{indent}{slashes} {block_type} | {modifiers.strip()}")
                 else:
-                    new_lines.append(f"{slashes} {block_type}")
-                new_lines.append(content)
-                new_lines.append(slashes)
+                    new_lines.append(f"{indent}{slashes} {block_type}")
+                new_lines.append(f"{indent}{content}")
+                new_lines.append(f"{indent}{slashes}")
             else:
                 new_lines.append(line)
         return new_lines

@@ -80,3 +80,12 @@ def test_more_slashes():
         "/////"
     ])
     assert render(input_text) == expected
+
+def test_leading_indentation():
+    input_text = "    /// attribution: Indented author"
+    expected = "\n".join([
+        "    /// attribution",
+        "    Indented author",
+        "    ///"
+    ])
+    assert render(input_text) == expected
