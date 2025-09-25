@@ -8,7 +8,7 @@ class InlineBlockPreprocessor(Preprocessor):
     # 1. /// block: content
     # 2. /// block | modifiers : content
     RE = re.compile(
-        r'^(?P<indent>[ \t]*)'                      # Capture leading indentation
+        r'^(?P<indent>[ \t]*)'                     # Capture leading indentation
         r'(?P<slashes>/{3,})\s*'                   # Capture 3+ leading slashes
         r'(?P<block>[a-zA-Z0-9_-]+)'               # Block type
         r'(?:\s*\|\s*(?P<modifiers>[^:]+))?'       # Optional modifiers
@@ -16,14 +16,22 @@ class InlineBlockPreprocessor(Preprocessor):
         r'(?P<content>.+)$'                        # Content
     )
 
+    def __init__(self, md, exclude_blocks=[]):
+        super().__init__(md)
+        self.exclude_blocks = exclude_blocks
+
     def run(self, lines):
         new_lines = []
         for line in lines:
             m = self.RE.match(line)
             if m:
+                block_type = m.group("block")
+                if block_type in self.exclude_blocks:
+                    new_lines.append(line)
+                    continue
+
                 indent = m.group("indent") or ""
                 slashes = m.group("slashes")
-                block_type = m.group("block")
                 modifiers = m.group("modifiers")
                 content = m.group("content").strip()
 
@@ -39,15 +47,20 @@ class InlineBlockPreprocessor(Preprocessor):
 
 
 class InlineBlockExtension(Extension):
+    def __init__(self, **kwargs):
+        self.config = {
+            "exclude_blocks": [["html"], "List of block types to exclude from processing"]
+        }
+        super().__init__(**kwargs)
+
     def extendMarkdown(self, md):
         md.preprocessors.register(
-            InlineBlockPreprocessor(md),
+            InlineBlockPreprocessor(md, self.getConfig("exclude_blocks")),
             "inline_blocks",
             25,
         )
 
 
-def makeExtension(*args, **kwargs):
-    """Return extension."""
+def makeExtension(**kwargs):
+    return InlineBlockExtension(**kwargs)
 
-    return InlineBlockExtension(*args, **kwargs)
