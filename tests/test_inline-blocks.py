@@ -115,3 +115,23 @@ def test_exclude():
     md = markdown.Markdown(extensions=[InlineBlockExtension(exclude_blocks=["attribution"])])
     input_text = '/// attribution: Some author'
     assert render(input_text, md) == input_text
+
+
+def test_delimiter():
+    input_text = "///! caption | [style=\"color: red;\"] ! A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text) == expected
+
+def test_config_delimiter():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(delimiter="!")])
+    input_text = "/// caption | [style=\"color: red;\"] ! A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected

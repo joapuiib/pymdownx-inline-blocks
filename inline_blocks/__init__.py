@@ -7,39 +7,52 @@ class InlineBlockPreprocessor(Preprocessor):
     # Match forms:
     # 1. /// block: content
     # 2. /// block | modifiers : content
-    RE = re.compile(
-        r'^(?P<indent>[ \t]*)'                     # Capture leading indentation
-        r'(?P<slashes>/{3,})\s*'                   # Capture 3+ leading slashes
-        r'(?P<block>[a-zA-Z0-9_-]+)'               # Block type
-        r'(?:\s*\|\s*(?P<modifiers>[^:]+))?'       # Optional modifiers
-        r'\s*:\s*'
-        r'(?P<content>.+)$'                        # Content
+    # 3. ///<delim> block | modifiers <delim> content
+    HEADER_RE = re.compile(
+        r'^(?P<indent>[ \t]*)'                     # Leading indentation
+        r'(?P<slashes>/{3,})'                      # 3+ leading slashes
+        r'(?P<delimiter>\S)?'                      # Optional delimiter (non-whitespace)
+        r'\s*'                                     # Optional whitespace
+        r'(?P<header>.+)$'                         # Block type + optional modifiers + content
     )
 
-    def __init__(self, md, exclude_blocks=[]):
+    def __init__(self, md, exclude_blocks=[], delimiter=":"):
         super().__init__(md)
         self.exclude_blocks = exclude_blocks
+        self.delimiter = delimiter
 
     def run(self, lines):
         new_lines = []
         for line in lines:
-            m = self.RE.match(line)
+            m = self.HEADER_RE.match(line)
             if m:
-                block_type = m.group("block")
-                if block_type in self.exclude_blocks:
+                indent = m.group("indent") or ""
+                slashes = m.group("slashes")
+                delimiter = m.group("delimiter") or self.delimiter
+                header = m.group("header").strip()
+
+                if delimiter not in header:
+                    new_lines.append(line)
+                    continue
+                before, content = map(str.strip, header.split(delimiter, 1))
+
+                if "|" in before:
+                    block, modifiers = map(str.strip, before.split("|", 1))
+                else:
+                    block = before.strip()
+                    modifiers = None
+
+                if not block or block in self.exclude_blocks:
                     new_lines.append(line)
                     continue
 
-                indent = m.group("indent") or ""
-                slashes = m.group("slashes")
-                modifiers = m.group("modifiers")
-                content = m.group("content").strip()
-
                 if modifiers:
-                    new_lines.append(f"{indent}{slashes} {block_type} | {modifiers.strip()}")
+                    new_lines.append(f"{indent}{slashes} {block} | {modifiers.strip()}")
                 else:
-                    new_lines.append(f"{indent}{slashes} {block_type}")
-                new_lines.append(f"{indent}{content}")
+                    new_lines.append(f"{indent}{slashes} {block}")
+
+                if content:
+                    new_lines.append(f"{indent}{content}")
                 new_lines.append(f"{indent}{slashes}")
             else:
                 new_lines.append(line)
@@ -49,13 +62,18 @@ class InlineBlockPreprocessor(Preprocessor):
 class InlineBlockExtension(Extension):
     def __init__(self, **kwargs):
         self.config = {
-            "exclude_blocks": [["html"], "List of block types to exclude from processing"]
+            "exclude_blocks": [["html"], "List of block types to exclude from processing"],
+            "delimiter": [":", "Delimiter separating block type from content (default ':')"]
         }
         super().__init__(**kwargs)
 
     def extendMarkdown(self, md):
         md.preprocessors.register(
-            InlineBlockPreprocessor(md, self.getConfig("exclude_blocks")),
+            InlineBlockPreprocessor(
+                md,
+                exclude_blocks=self.getConfig("exclude_blocks"),
+                delimiter=self.getConfig("delimiter")
+            ),
             "inline_blocks",
             25,
         )

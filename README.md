@@ -51,3 +51,9 @@ or, if using MkDocs, add it to your `mkdocs.yml`:
 markdown_extensions:
   - inline_blocks
 ```
+
+## Options
+The extension supports the following options:
+
+- `exclude_blocks`: A list of block types to exclude from processing. Default is `['html']`.
+- `delimiter`: The delimiter used to separate the block and the content. Default is `:`.
