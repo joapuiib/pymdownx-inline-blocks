@@ -126,9 +126,32 @@ def test_delimiter():
     ])
     assert render(input_text) == expected
 
+
 def test_config_delimiter():
     md = markdown.Markdown(extensions=[InlineBlockExtension(delimiter="!")])
     input_text = "/// caption | [style=\"color: red;\"] ! A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected
+
+
+def test_config_block_delimiter():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(block_delimiter={"caption": "!"})])
+    input_text = "/// caption | [style=\"color: red;\"] ! A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected
+
+
+def test_config_block_delimiter_override():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(block_delimiter={"caption": "!"})])
+    input_text = "///+ caption | [style=\"color: red;\"] + A red caption."
     expected = "\n".join([
         "/// caption | [style=\"color: red;\"]",
         "A red caption.",

@@ -13,13 +13,15 @@ class InlineBlockPreprocessor(Preprocessor):
         r'(?P<slashes>/{3,})'                      # 3+ leading slashes
         r'(?P<delimiter>\S)?'                      # Optional delimiter (non-whitespace)
         r'\s*'                                     # Optional whitespace
-        r'(?P<header>.+)$'                         # Block type + optional modifiers + content
+        r'(?P<block>[a-zA-Z0-9_-]+)'               # Block type
+        r'(?P<header>.+)$'                         # optional modifiers + content
     )
 
-    def __init__(self, md, exclude_blocks=[], delimiter=":"):
+    def __init__(self, md, exclude_blocks=[], delimiter=":", block_delimiter={}):
         super().__init__(md)
         self.exclude_blocks = exclude_blocks
         self.delimiter = delimiter
+        self.block_delimiter = block_delimiter
 
     def run(self, lines):
         new_lines = []
@@ -28,23 +30,23 @@ class InlineBlockPreprocessor(Preprocessor):
             if m:
                 indent = m.group("indent") or ""
                 slashes = m.group("slashes")
-                delimiter = m.group("delimiter") or self.delimiter
+                block = m.group("block").strip()
+                delimiter = m.group("delimiter") or self.block_delimiter.get(block, self.delimiter)
                 header = m.group("header").strip()
+
+                if block in self.exclude_blocks:
+                    new_lines.append(line)
+                    continue
 
                 if delimiter not in header:
                     new_lines.append(line)
                     continue
+
                 before, content = map(str.strip, header.split(delimiter, 1))
 
+                modifiers = None
                 if "|" in before:
-                    block, modifiers = map(str.strip, before.split("|", 1))
-                else:
-                    block = before.strip()
-                    modifiers = None
-
-                if not block or block in self.exclude_blocks:
-                    new_lines.append(line)
-                    continue
+                    _, modifiers = map(str.strip, before.split("|", 1))
 
                 if modifiers:
                     new_lines.append(f"{indent}{slashes} {block} | {modifiers.strip()}")
@@ -63,7 +65,8 @@ class InlineBlockExtension(Extension):
     def __init__(self, **kwargs):
         self.config = {
             "exclude_blocks": [["html"], "List of block types to exclude from processing"],
-            "delimiter": [":", "Delimiter separating block type from content (default ':')"]
+            "delimiter": [":", "Delimiter separating block type from content (default ':')"],
+            "block_delimiter": [{}, "Dictionary for specifying a default delimeter for specific block types"],
         }
         super().__init__(**kwargs)
 
@@ -72,7 +75,8 @@ class InlineBlockExtension(Extension):
             InlineBlockPreprocessor(
                 md,
                 exclude_blocks=self.getConfig("exclude_blocks"),
-                delimiter=self.getConfig("delimiter")
+                delimiter=self.getConfig("delimiter"),
+                block_delimiter=self.getConfig("block_delimiter"),
             ),
             "inline_blocks",
             25,
