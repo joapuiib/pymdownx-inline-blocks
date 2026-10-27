@@ -135,3 +135,45 @@ def test_config_delimiter():
         "///"
     ])
     assert render(input_text, md) == expected
+
+
+def convert(text: str) -> str:
+    # inline_blocks is listed first, so it only runs after SuperFences thanks to its priority
+    md = markdown.Markdown(extensions=[
+        'inline_blocks', 'pymdownx.superfences', 'pymdownx.blocks.caption', 'admonition',
+    ])
+    return md.convert(text)
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~", "````"])
+def test_fenced_code_is_not_processed(fence):
+    input_text = "\n".join([
+        f"{fence}markdown",
+        "/// caption: Inside",
+        fence,
+    ])
+    assert "/// caption: Inside" in convert(input_text)
+
+
+def test_indented_fenced_code_is_not_processed():
+    input_text = "\n".join([
+        '!!! example "Markdown"',
+        "",
+        "    ```markdown",
+        "    /// caption | .spell-ignore : Inside",
+        "    ```",
+    ])
+    assert "/// caption | .spell-ignore : Inside" in convert(input_text)
+
+
+def test_blocks_after_fenced_code_are_processed():
+    input_text = "\n".join([
+        "```markdown",
+        "/// caption: Inside",
+        "```",
+        "",
+        "/// caption: Outside",
+    ])
+    html = convert(input_text)
+    assert "/// caption: Inside" in html
+    assert "<p>Outside</p>" in html

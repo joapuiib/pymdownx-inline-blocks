@@ -68,6 +68,8 @@ class InlineBlockExtension(Extension):
         super().__init__(**kwargs)
 
     def extendMarkdown(self, md):
+        # Run after SuperFences ("fenced_code_block", priority 25), so fenced
+        # code is already stashed and its content is left untouched
         md.preprocessors.register(
             InlineBlockPreprocessor(
                 md,
@@ -75,7 +77,7 @@ class InlineBlockExtension(Extension):
                 delimiter=self.getConfig("delimiter")
             ),
             "inline_blocks",
-            25,
+            24,
         )
 
 
