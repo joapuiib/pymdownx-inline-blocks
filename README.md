@@ -57,3 +57,21 @@ The extension supports the following options:
 
 - `exclude_blocks`: A list of block types to exclude from processing. Default is `['html']`.
 - `delimiter`: The delimiter used to separate the block and the content. Default is `:`.
+- `block_delimiter`: A dictionary mapping block types to their own default delimiter, overriding `delimiter` for those blocks. Default is `{}`.
+
+For example, to use `!` as the delimiter for `caption` blocks only:
+
+```yaml
+markdown_extensions:
+  - inline_blocks:
+      block_delimiter:
+        caption: "!"
+```
+
+Delimiters must be non-empty strings; otherwise the extension raises a `ValueError` when it is loaded.
+
+The delimiter can also be set for a single line by writing it right after the slashes, followed by a space. It takes precedence over both options:
+
+```markdown
+///! caption | [style="color: red;"] ! A red caption.
+```

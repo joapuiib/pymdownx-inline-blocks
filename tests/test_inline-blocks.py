@@ -1,3 +1,5 @@
+import re
+
 import markdown
 import pytest
 from inline_blocks import InlineBlockExtension
@@ -126,6 +128,7 @@ def test_delimiter():
     ])
     assert render(input_text) == expected
 
+
 def test_config_delimiter():
     md = markdown.Markdown(extensions=[InlineBlockExtension(delimiter="!")])
     input_text = "/// caption | [style=\"color: red;\"] ! A red caption."
@@ -135,6 +138,84 @@ def test_config_delimiter():
         "///"
     ])
     assert render(input_text, md) == expected
+
+
+def test_config_block_delimiter():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(block_delimiter={"caption": "!"})])
+    input_text = "/// caption | [style=\"color: red;\"] ! A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected
+
+
+def test_config_block_delimiter_override():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(block_delimiter={"caption": "!"})])
+    input_text = "///+ caption | [style=\"color: red;\"] + A red caption."
+    expected = "\n".join([
+        "/// caption | [style=\"color: red;\"]",
+        "A red caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected
+
+
+@pytest.mark.parametrize("line, kwargs", [
+    ("/// caption- A caption.", {"delimiter": "-"}),
+    ("///- caption- A caption.", {}),
+    ("/// caption_ A caption.", {"block_delimiter": {"caption": "_"}}),
+])
+def test_delimiter_after_block_name(line, kwargs):
+    md = markdown.Markdown(extensions=[InlineBlockExtension(**kwargs)])
+    expected = "\n".join([
+        "/// caption",
+        "A caption.",
+        "///"
+    ])
+    assert render(line, md) == expected
+
+
+def test_hyphenated_block_with_hyphen_delimiter():
+    md = markdown.Markdown(extensions=[InlineBlockExtension(delimiter="-")])
+    input_text = "/// figure-caption - A caption."
+    expected = "\n".join([
+        "/// figure-caption",
+        "A caption.",
+        "///"
+    ])
+    assert render(input_text, md) == expected
+
+
+@pytest.mark.parametrize("line", [
+    "///caption: A caption.",
+    "///   caption: A caption.",
+])
+def test_block_without_space_after_slashes(line):
+    expected = "\n".join([
+        "/// caption",
+        "A caption.",
+        "///"
+    ])
+    assert render(line) == expected
+
+
+def test_inline_delimiter_requires_whitespace():
+    input_text = "///+caption: A caption."
+    assert render(input_text) == input_text
+
+
+@pytest.mark.parametrize("kwargs, message", [
+    ({"delimiter": ""}, "'delimiter' must be a non-empty string"),
+    ({"delimiter": None}, "'delimiter' must be a non-empty string"),
+    ({"block_delimiter": {"caption": ""}}, "'block_delimiter['caption']' must be a non-empty string"),
+    ({"block_delimiter": {"caption": 1}}, "'block_delimiter['caption']' must be a non-empty string"),
+    ({"block_delimiter": ["caption"]}, "'block_delimiter' must be a dictionary"),
+])
+def test_invalid_delimiter_config(kwargs, message):
+    with pytest.raises(ValueError, match=re.escape(message)):
+        InlineBlockExtension(**kwargs)
 
 
 def convert(text: str) -> str:
